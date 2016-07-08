@@ -1,0 +1,35 @@
+{
+  "name": "hproxy",
+  "version": "1.0.0",
+  "description": "HTTP Proxy",
+  "main": "hproxy.js",
+  "scripts": {
+    "start": "./hproxy.js"
+  },
+  "bin": {
+    "hproxy": "./hproxy.js",
+    "http-proxy": "./hproxy.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/giladno/hproxy.git"
+  },
+  "dependencies": {
+    "base64-js": "^1.1.2",
+    "express": "^4.14.0",
+    "filesize": "^3.3.0",
+    "font-awesome": "^4.6.3",
+    "jquery": "^3.0.0",
+    "node-forge": "^0.6.40",
+    "socket.io": "^1.4.8",
+    "socket.io-client": "^1.4.8",
+    "w2ui": "github:vitmalina/w2ui",
+    "yargs": "^4.7.1"
+  },
+  "author": "Gilad Novik <gilad@novik.ca>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/giladno/hproxy/issues"
+  },
+  "homepage": "https://github.com/giladno/hproxy#readme"
+}
