@@ -38,13 +38,18 @@
             {type: 'bottom', size: '30%', resizable: true, style: 'background-color: #F5F6F7; padding: 5px;', hidden: true,
               toolbar: {
                 items: [
-                  {type: 'spacer', id: 'spacer'},
+                  {type: 'break', id: 'break'},
+                  {type: 'button', id: 'code', icon: 'fa-code fa', checked: true},
+                  {type: 'spacer'},
                   {type: 'button', id: 'close', icon: 'fa-close fa'},
                 ],
                 onClick: function(evt){
+                  var toolbar = this;
                   evt.onComplete = function(){
                     if (evt.target=='close')
                       return w2ui.layout.hide('bottom');
+                    if (evt.target=='code')
+                      return toolbar.set('code', {checked: !evt.item.checked});
                   };
                 },
               }},
@@ -96,66 +101,79 @@
               }},
           ],
           onClick: function(evt){
+            var data = this.get(evt.recid).data;
             var toolbar = w2ui.layout.get('bottom').toolbar;
             toolbar.remove('download');
-            var data = this.get(evt.recid).data;
-            var output = data.req.method+' '+data.req.url+'\n';
-            for (var name in data.req.headers)
-              output += name+': '+data.req.headers[name]+'\n';
-            output += '\n';
-            if ((data.req.headers['content-type']||'').match(/text\/|application\/(json|xml|x-www-form-urlencoded)|xml$/))
-              output += String.fromCharCode.apply(null, new Uint8Array(data.req.body))+'\n';
-            if (data.res.code)
+            if(data.res.body && data.res.body.byteLength)
             {
-              output += '\nHTTP/'+data.res.http+' '+data.res.code+' '+data.res.msg+'\n';
-              for (var name in data.res.headers)
-                output += name+': '+data.res.headers[name]+'\n';
-              output += '\n';
-              if(data.res.body.byteLength)
-              {
-                var URL = window.URL||window.webkitURL;
-                toolbar.insert('spacer', {
-                  type: 'button',
-                  id: 'download',
-                  icon: 'fa-download fa',
-                  onClick: function(){
-                    var save = $('<a>', {
-                      href: URL.createObjectURL(new Blob([data.res.body],
-                        {type: 'application/octet-stream'})),
-                      download: data.req.url.split(/[#?]/)[0].split('/').pop()||'file',
-                    })[0];
-                    var event = document.createEvent('Event');
-                    event.initEvent('click', true, true);
-                    save.dispatchEvent(event);
-                    URL.revokeObjectURL(save.href);
-                  },
-                });
-              }
+              var URL = window.URL||window.webkitURL;
+              toolbar.insert('break', {
+                type: 'button',
+                id: 'download',
+                icon: 'fa-download fa',
+                onClick: function(){
+                  var save = $('<a>', {
+                    href: URL.createObjectURL(new Blob([data.res.body],
+                      {type: 'application/octet-stream'})),
+                    download: data.req.url.split(/[#?]/)[0].split('/').pop()||'file',
+                  })[0];
+                  var event = document.createEvent('Event');
+                  event.initEvent('click', true, true);
+                  save.dispatchEvent(event);
+                  URL.revokeObjectURL(save.href);
+                },
+              });
             }
-            var div = $('<div>').append($('<pre>').text(output));
-            var type = data.res.headers['content-type']||'';
-            try {
-              if (type.match(/application\/json/))
-              {
-                try {
-                  div.append($('<pre>').text(JSON.stringify(JSON.parse(String.fromCharCode.apply(null,
-                    new Uint8Array(data.res.body))), null, 4)));
+            var update = function(code){
+              var div = $('<div>');
+              [data.req, data.res].forEach(function(o){
+                var headers = '';
+                if (o.method)
+                  headers = o.method+' '+o.url+' HTTP/'+o.http+'\n';
+                else if (o.code)
+                  headers = '\n\nHTTP/'+o.http+' '+o.code+' '+o.msg+'\n';
+                else
+                  return;
+                Object.keys(o.headers).forEach(function(name){
+                  headers += name+': '+o.headers[name]+'\n';
+                });
+                div.append($('<pre>').text(headers));
+                var type = o.headers['content-type']||'';
+                if (type.match(/application\/x-www-form-urlencoded/) && code)
+                {
+                  try {
+                    return div.append($('<pre>').text(String.fromCharCode.apply(null, new Uint8Array(o.body)).split('&').map(function(pair){
+                      return pair.split('=').map(decodeURIComponent).join('=');
+                    }).join('\n')));
+                  } catch(e) {}
                 }
-                catch(e){
-                  div.append($('<pre>').text(String.fromCharCode.apply(null, new Uint8Array(data.res.body))));
+                if (type.match(/application\/json/) && code)
+                {
+                  try {
+                    return div.append($('<pre>').text(JSON.stringify(JSON.parse(String.fromCharCode.apply(null,
+                      new Uint8Array(o.body))), null, 4)));
+                  } catch(e) {}
                 }
-              }
-              else if (type.match(/^image\//))
-              {
-                div.append($('<img>', {src: 'data:'+type+';base64,'+
-                  base64js.fromByteArray(new Uint8Array(data.res.body))}));
-              }
-              else if (type.match(/text\/|application\/(javascript|xml)|xml$/))
-                div.append($('<pre>').text(String.fromCharCode.apply(null, new Uint8Array(data.res.body))));
-              }
-            catch(e){ console.log(e); }
-
-            w2ui.layout.content('bottom', div.html());
+                if (type.match(/^image\//))
+                {
+                  try {
+                    return div.append($('<img>', {src: 'data:'+type+';base64,'+
+                      base64js.fromByteArray(new Uint8Array(o.body))}));
+                  } catch(e) {}
+                }
+                if (type.match(/text\/|application\/(json|javascript|xml|x-www-form-urlencoded)|xml$/))
+                {
+                  try {
+                    return div.append($('<pre>').text(String.fromCharCode.apply(null, new Uint8Array(o.body))));
+                  } catch(e) {}
+                }
+              });
+              w2ui.layout.content('bottom', div.html());
+            };
+            toolbar.set('code', {onClick: function(evt){
+              update(!evt.item.checked);
+            }});
+            update(toolbar.get('code').checked);
             if (w2ui.layout.get('bottom').hidden)
                 w2ui.layout.show('bottom');
           },

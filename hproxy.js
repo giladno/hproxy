@@ -54,6 +54,7 @@ const handler = (req, res)=>(new Promise((resolve, reject)=>{
         req: {
             method: req.method,
             url: `${url.protocol}//${url.hostname}:${url.port}${url.path}`,
+            http: req.httpVersion,
             headers: req.headers,
             body: Buffer.alloc(0),
             body_length: 0,
